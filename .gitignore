@@ -194,4 +194,4 @@ cython_debug/
 .cursorindexingignore
 
 # project-specific
-vstore/
+chroma_demo/

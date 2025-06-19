@@ -1,9 +1,5 @@
-langchain
-langchain-core
 langchain-community
-chromadb
-sentence-transformers
-transformers
-hf-transfer
-torch
-accelerate
+langgraph
+langchain[openai]
+langchain-chroma
+tqdm
