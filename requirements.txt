@@ -1,5 +1,1 @@
-langchain-community
-langgraph
-langchain[openai]
-langchain-chroma
-tqdm
+tomli-w
