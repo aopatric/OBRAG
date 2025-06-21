@@ -16,6 +16,7 @@ class Config:
     top_k: int = 5
     temperature: float = 0.1
     openai_api_key: str = field(default_factory=lambda: os.environ.get("OPENAI_API_KEY", ""))
+    first_run: bool = True
 
     @property
     def vault_exists(self) -> bool:
@@ -73,6 +74,7 @@ def save_config(cfg: Config) -> None:
         tomli_w.dump(asdict(cfg, dict_factory=_path_fixing_factory), f) # type: ignore
     
 def startup_wizard(init_cfg: Config) -> None: # change this later
+    print("An issue has been detected with your configuration. Welcome to the OBRAG startup wizard!")
     cfg = init_cfg
 
     # check vault path
@@ -84,8 +86,51 @@ def startup_wizard(init_cfg: Config) -> None: # change this later
 
         # make the parent directory if it doesnt exist
         cfg.vault_path.mkdir(parents=True, exist_ok=True)
+    
+    # check for persist directory
+    print(f"Persist directory is set to {cfg.persist_dir}. Leave empty to use default or enter a new path.")
+    path = input(f"Persist directory [{cfg.persist_dir}]: ").strip()
+    if path:
+        cfg = replace(cfg, persist_dir=Path(path))
+    
+    # check for embedding model
+    print(f"Embedding model is set to {cfg.embedding_model}. Leave empty to use default or enter a new model.")
+    print(f"Note that for now, we only support HuggingFace embedding models.")
+    model = input(f"Embedding model [{cfg.embedding_model}]: ").strip()
+    if model:
+        cfg = replace(cfg, embedding_model=model)
+    
+    # check for chat model
+    print(f"Chat model is set to {cfg.chat_model}. Leave empty to use default or enter a new model.")
+    print(f"Note that for now, we only support OpenAI chat models.")
+    chat_model = input(f"Chat model [{cfg.chat_model}]: ").strip()
+    if chat_model:
+        cfg = replace(cfg, chat_model=chat_model)
+    
+    # check for top_k
+    print(f"Top K is set to {cfg.top_k}. Leave empty to use default or enter a new value.")
+    top_k = input(f"Top K [{cfg.top_k}]: ").strip()
+    if top_k:
+        try:
+            cfg = replace(cfg, top_k=int(top_k))
+        except ValueError:
+            print("Invalid value for Top K. Using default value.")
+    
+    # check for temperature
+    print(f"Temperature is set to {cfg.temperature}. Leave empty to use default or enter a new value.")
+    temperature = input(f"Temperature [{cfg.temperature}]: ").strip()
+    if temperature:
+        try:
+            cfg = replace(cfg, temperature=float(temperature))
+        except ValueError:
+            print("Invalid value for temperature. Using default value.")
 
     # check for API key(s) (only OpenAI for now)
+    print(f"Checking for OpenAI API key...")
+    if cfg.openai_api_key:
+        print("OpenAI API key found in environment variables.")
+    else:
+        print("No OpenAI API key found. You will need it to use the chat model.")
     if not os.getenv("OPENAI_API_KEY"):
         key = getpass("Enter your OpenAI API key: ").strip()
         os.environ["OPENAI_API_KEY"] = key
@@ -94,5 +139,6 @@ def startup_wizard(init_cfg: Config) -> None: # change this later
         if persist:
             cfg = replace(cfg, openai_api_key=key)
     
+    cfg = replace(cfg, first_run=False)
     save_config(cfg)
     print(f"Configuration saved successfully at {_CFG_FILE}")

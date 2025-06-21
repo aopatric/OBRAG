@@ -198,3 +198,4 @@ data/
 logs/
 config.json
 deprecated/
+tests/

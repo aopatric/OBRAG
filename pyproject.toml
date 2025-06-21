@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools<68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "obrag"
+version         = "1.0.0"
+description     = "Offline-note RAG assistant"
+readme          = "README.md"
+license         = { file = "LICENSE" }
+authors         = [{ name="Angel Patricio", email="aopatric@mit.edu" }]
+requires-python = ">=3.11"
+dependencies    = [
+    "tomli-w<1.2.0",
+    "tqdm<4.67.1",
+    "langchain-chroma<0.2.4",
+    "langchain-openai<0.3.24",
+    "langchain-huggingface<0.3.0",
+    "langchain-community<0.3.26",
+    "langgraph<0.4.8",
+    "sentence-transformers<4.1.0"
+]
+
+[project.scripts]
+obrag = "obrag.cli:main"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where    = ["src"]
+include  = ["obrag", "obrag.*"]
+exclude  = ["tests*"]
