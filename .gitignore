@@ -194,4 +194,8 @@ cython_debug/
 .cursorindexingignore
 
 # project-specific
-vstore/
+data/
+logs/
+config.json
+deprecated/
+tests/
