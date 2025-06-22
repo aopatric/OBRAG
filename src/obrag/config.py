@@ -3,6 +3,9 @@ from dataclasses import dataclass, field, asdict, replace
 from pathlib import Path
 from typing import Any
 from getpass import getpass
+from langchain_community.document_loaders import ObsidianLoader
+from langchain_huggingface import HuggingFaceEmbeddings
+from logging import Logger
 import os
 import tomllib
 import tomli_w
@@ -73,32 +76,73 @@ def save_config(cfg: Config) -> None:
     with open(path, "wb") as f:
         tomli_w.dump(asdict(cfg, dict_factory=_path_fixing_factory), f) # type: ignore
     
-def startup_wizard(init_cfg: Config) -> None: # change this later
+def startup_wizard(init_cfg: Config, logger: logging.Logger) -> None: # change this later
     print("An issue has been detected with your configuration. Welcome to the OBRAG startup wizard!")
     cfg = init_cfg
 
-    # check vault path
-    if not cfg.vault_exists:
-        print(f"Provided vault directory {cfg.vault_path} does not exist.")
-        p = input("Please enter a valid Obsidian vault path: ").strip()
-        if p:
-            cfg = replace(cfg, vault_path=Path(p))
+    # ask for vault path until ObsidianLoader can find documents
+    vault_valid = False
+    while not vault_valid:
+        print(f"Current vault path is set to {cfg.vault_path}, but the directory does not exist or does not contain a valid Obsidian vault.")
+        
+        # get rid of trailing quotes and spaces
+        vault_dir = input("Please enter the path to your Obsidian vault: ").strip(' \'"')
 
-        # make the parent directory if it doesnt exist
-        cfg.vault_path.mkdir(parents=True, exist_ok=True)
+        # check if the path is valid and ObsidianLoader can find it
+        try:
+            # try to cast to Path
+            vault_path = Path(vault_dir)
+            
+            # if it doesn't even exist, raise an error
+            if not vault_path.exists():
+                raise FileNotFoundError(f"Path {vault_path} does not exist.")
+            
+            # check if ObsidianLoader can find documents
+            test_loader = ObsidianLoader(path=vault_path, collect_metadata=False)
+            documents = test_loader.load()
+            print(f"Found {len(documents)} documents in the vault during validation. Continuing...")
+            vault_valid = True
+            
+        except Exception as e:
+            print(f"Invalid path: {e}. Please try again.")
+            continue
     
-    # check for persist directory
+    print(f"Vault path valid and set to {vault_path}.")
+
+    
+    # set persist directory, shouldn't cause issues since we create it later
     print(f"Persist directory is set to {cfg.persist_dir}. Leave empty to use default or enter a new path.")
     path = input(f"Persist directory [{cfg.persist_dir}]: ").strip()
     if path:
         cfg = replace(cfg, persist_dir=Path(path))
     
     # check for embedding model
-    print(f"Embedding model is set to {cfg.embedding_model}. Leave empty to use default or enter a new model.")
+    print(f"Embedding model is set to '{cfg.embedding_model}'. Leave empty to use default or enter a new model.")
     print(f"Note that for now, we only support HuggingFace embedding models.")
-    model = input(f"Embedding model [{cfg.embedding_model}]: ").strip()
-    if model:
-        cfg = replace(cfg, embedding_model=model)
+
+    model_valid = False
+    while not model_valid:
+        # get the name of the model
+        embedding_model = input(f"Embedding model [{cfg.embedding_model}]: ").strip(' \'"')
+
+        # using the default if empty
+        if not embedding_model:
+            embedding_model = cfg.embedding_model
+            model_valid = True
+            continue
+
+        # if we get a model name, try to open it with HuggingFace
+        try:
+            embed_fn = HuggingFaceEmbeddings(model_name=embedding_model)
+            model_valid = True
+            cfg = replace(cfg, embedding_model=embedding_model)
+            continue
+        except Exception as e:
+            print(f"Invalid embedding model: {e}. Please try again.")
+            continue
+    
+    print(f"Using model '{embedding_model}' for embeddings.")
+            
     
     # check for chat model
     print(f"Chat model is set to {cfg.chat_model}. Leave empty to use default or enter a new model.")

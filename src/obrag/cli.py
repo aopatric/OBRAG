@@ -47,13 +47,13 @@ def main():
 
     if cfg.first_run:
         logger.info("First run detected. Starting configuration wizard...")
-        startup_wizard(cfg)
+        startup_wizard(cfg, logger)
         logger.info("Configuration wizard completed.")
     
     if args.reconfigure:
         logger.info("Reconfiguring OBRAG settings...")
         print("Reconfigure flag passed...")
-        startup_wizard(cfg)
+        startup_wizard(cfg, logger)
         logger.info("Reconfiguration completed.")
 
     # move on to loading vstore, building if necessary
