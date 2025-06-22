@@ -20,7 +20,7 @@ ASCII_BANNER = """
      \\/__/         \\/__/         \\/__/         \\/__/         \\/__/    
 """
 
-VERSION_NUMBER = "1.0.0"
+VERSION_NUMBER = "0.1.0"
 
 
 def print_banner() -> None:
@@ -53,3 +53,13 @@ def get_args() -> argparse.Namespace:
         help="Ask a question directly from the command line, shortcut for CLI."
     )
     return parser.parse_args()
+
+def print_help() -> None:
+    """Print the help message."""
+    print("OBRAG CLI")
+    print("Usage: obrag [options]")
+    print("Options:")
+    print("  --reconfigure    Reconfigure OBRAG settings and rebuild the vector store.")
+    print("  --rebuild        Rebuild the vector store from the Obsidian vault.")
+    print("  --ask            Ask a question directly from the command line, shortcut for CLI.")
+    print("  --help           Print this help message.")
