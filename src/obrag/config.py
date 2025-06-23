@@ -6,6 +6,11 @@ from getpass import getpass
 from langchain_community.document_loaders import ObsidianLoader
 from langchain_huggingface import HuggingFaceEmbeddings
 from logging import Logger
+from openai import OpenAI
+from time import sleep
+
+from .utils import *
+
 import os
 import tomllib
 import tomli_w
@@ -76,113 +81,115 @@ def save_config(cfg: Config) -> None:
     with open(path, "wb") as f:
         tomli_w.dump(asdict(cfg, dict_factory=_path_fixing_factory), f) # type: ignore
     
-def startup_wizard(init_cfg: Config, logger: logging.Logger) -> None: # change this later
+def startup_wizard(init_cfg: Config, logger: Logger) -> None:
     print("An issue has been detected with your configuration. Welcome to the OBRAG startup wizard!")
     cfg = init_cfg
 
     # ask for vault path until ObsidianLoader can find documents
-    vault_valid = False
-    while not vault_valid:
-        print(f"Current vault path is set to {cfg.vault_path}, but the directory does not exist or does not contain a valid Obsidian vault.")
-        
-        # get rid of trailing quotes and spaces
-        vault_dir = input("Please enter the path to your Obsidian vault: ").strip(' \'"')
+    while True:
+        print(f"Vault directory currently set at {cfg.vault_path}. Enter a new one or leave empty to try the existing setting.")
+        vault_path = input(f"Enter a new vault path [{cfg.vault_path}]: ").strip(' \'\"')
 
-        # check if the path is valid and ObsidianLoader can find it
+        if not vault_path:
+            vault_path = cfg.vault_path
+        
+        # check if the given vault path is valid
         try:
-            # try to cast to Path
-            vault_path = Path(vault_dir)
-            
-            # if it doesn't even exist, raise an error
+            print(f"Trying to verify path {vault_path}...")
+            vault_path = Path(vault_path)
+
             if not vault_path.exists():
-                raise FileNotFoundError(f"Path {vault_path} does not exist.")
+                raise FileNotFoundError("The specified vault location does not exist. Please try again.")
             
-            # check if ObsidianLoader can find documents
-            test_loader = ObsidianLoader(path=vault_path, collect_metadata=False)
-            documents = test_loader.load()
-            print(f"Found {len(documents)} documents in the vault during validation. Continuing...")
-            vault_valid = True
-            
+            loader = ObsidianLoader(path=vault_path, collect_metadata=False)
+            docs = loader.load()
+            print(f"Vault location {vault_path} valid. Found {len(docs)} files.")
+            cfg = replace(cfg, vault_path=vault_path)
+            break
         except Exception as e:
-            print(f"Invalid path: {e}. Please try again.")
+            print(f"Error with vault selection: {e}")
             continue
     
     print(f"Vault path valid and set to {vault_path}.")
-
+    print(f"\n\n")
     
     # set persist directory, shouldn't cause issues since we create it later
-    print(f"Persist directory is set to {cfg.persist_dir}. Leave empty to use default or enter a new path.")
+    print(f"Persist directory is set to [{cfg.persist_dir}]. Leave empty to use default or enter a new path.")
     path = input(f"Persist directory [{cfg.persist_dir}]: ").strip()
     if path:
         cfg = replace(cfg, persist_dir=Path(path))
+    print(f"Persist directory set to {cfg.persist_dir}")
+    print("\n\n")
     
     # check for embedding model
-    print(f"Embedding model is set to '{cfg.embedding_model}'. Leave empty to use default or enter a new model.")
+    print(f"Embedding model is set to '{cfg.embedding_model}'. Leave empty to use current setting or enter a new model.")
     print(f"Note that for now, we only support HuggingFace embedding models.")
 
-    model_valid = False
-    while not model_valid:
-        # get the name of the model
-        embedding_model = input(f"Embedding model [{cfg.embedding_model}]: ").strip(' \'"')
+    while True:
+        embed_model = input(f"Enter a new embedding model [{cfg.embedding_model}]:").strip(' \'"')
 
-        # using the default if empty
-        if not embedding_model:
-            embedding_model = cfg.embedding_model
-            model_valid = True
-            continue
-
-        # if we get a model name, try to open it with HuggingFace
+        if not embed_model:
+            embed_model = cfg.embedding_model
+        
+        print(f"Attempting to load model {embed_model}...")
+        # check if HuggingFaceEmbeddings works
         try:
-            embed_fn = HuggingFaceEmbeddings(model_name=embedding_model)
-            model_valid = True
-            cfg = replace(cfg, embedding_model=embedding_model)
-            continue
+            _ = HuggingFaceEmbeddings(model_name=embed_model)
+            print(f"Model sucessfully loaded.")
+            cfg = replace(cfg, embedding_model=embed_model)
+            break
         except Exception as e:
-            print(f"Invalid embedding model: {e}. Please try again.")
+            print(f"Error loading model: {e}")
             continue
     
-    print(f"Using model '{embedding_model}' for embeddings.")
-            
+    print(f"Using model '{embed_model}' for embeddings.")
+    print(f"\n\n")
     
     # check for chat model
     print(f"Chat model is set to {cfg.chat_model}. Leave empty to use default or enter a new model.")
-    print(f"Note that for now, we only support OpenAI chat models.")
-    chat_model = input(f"Chat model [{cfg.chat_model}]: ").strip()
-    if chat_model:
+    print(f"Note that for now, we only support OpenAI chat models. This step is not verified! Enusre your model name is correct or reconfigure.")
+
+    # leaving in a loop for future verification logic
+    while True:
+        chat_model = input(f"Enter a chat model to use [{cfg.chat_model}]: ").strip(' \'"')
+
+        if not chat_model:
+            chat_model = cfg.chat_model
+        
         cfg = replace(cfg, chat_model=chat_model)
-    
-    # check for top_k
-    print(f"Top K is set to {cfg.top_k}. Leave empty to use default or enter a new value.")
-    top_k = input(f"Top K [{cfg.top_k}]: ").strip()
-    if top_k:
-        try:
-            cfg = replace(cfg, top_k=int(top_k))
-        except ValueError:
-            print("Invalid value for Top K. Using default value.")
-    
-    # check for temperature
-    print(f"Temperature is set to {cfg.temperature}. Leave empty to use default or enter a new value.")
-    temperature = input(f"Temperature [{cfg.temperature}]: ").strip()
-    if temperature:
-        try:
-            cfg = replace(cfg, temperature=float(temperature))
-        except ValueError:
-            print("Invalid value for temperature. Using default value.")
+        break
+    print(f"Chat model set to {chat_model}.")
+    print(f"\n\n")
 
-    # check for API key(s) (only OpenAI for now)
-    print(f"Checking for OpenAI API key...")
-    if cfg.openai_api_key:
-        print("OpenAI API key found in environment variables.")
-    else:
-        print("No OpenAI API key found. You will need it to use the chat model.")
-    if not os.getenv("OPENAI_API_KEY"):
-        key = getpass("Enter your OpenAI API key: ").strip()
-        os.environ["OPENAI_API_KEY"] = key
-        persist = input("Do you want to save this API key in the config file? (y/n): ").strip().lower() == "y"
+    # get API key if not specified
+    print(f"The OpenAI API key is set in the environment at runtime, and stored in your config file.")
+    print(f"Enter a new API key or leave blank to attempt to load existing.")
+    while True:
+        api_key = getpass("Enter your OpenAI API key (hidden) [default]: ").strip(' \'"')
 
-        if persist:
-            cfg = replace(cfg, openai_api_key=key)
+        if not api_key:
+            api_key = cfg.openai_api_key
+        
+        # try to ping the api with this key
+        try:
+            os.environ["OPENAI_API_KEY"] = api_key
+            tester = OpenAI()
+            _ = tester.responses.create(
+                model="gpt-4.1",
+                input="test"
+            )
+            cfg = replace(cfg, openai_api_key=api_key)
+            break
+        except Exception as e:
+            print(f"Error testing API key: {e}")
+            continue
+
+        # note: temperature and top-k moved to a generation wizard for later.
+    print(f"API key set successfully.")
+    print("\n\n")
     
     cfg = replace(cfg, first_run=False)
     save_config(cfg)
-    print(f"Configuration saved successfully at {_CFG_FILE}")
+    print(f"Configuration saved successfully at {_CFG_FILE}... continuing in 3 seconds")
+    sleep(3)
+    clear_console()

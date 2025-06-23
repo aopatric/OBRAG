@@ -49,12 +49,17 @@ def main():
         logger.info("First run detected. Starting configuration wizard...")
         startup_wizard(cfg, logger)
         logger.info("Configuration wizard completed.")
+        print_banner()
     
     if args.reconfigure:
         logger.info("Reconfiguring OBRAG settings...")
         print("Reconfigure flag passed...")
         startup_wizard(cfg, logger)
         logger.info("Reconfiguration completed.")
+        print_banner()
+    
+    # set api key at runtime
+    os.environ["OPENAI_API_KEY"] = cfg.openai_api_key
 
     # move on to loading vstore, building if necessary
     indexer = Indexer(cfg, logger)

@@ -98,7 +98,7 @@ class Indexer:
 
         ids = self._get_ids(chunks)
 
-        for id, chunk in tqdm(zip(ids, chunks), desc="Adding documents to rebuilt vector store"):
+        for id, chunk in tqdm(zip(ids, chunks), desc="Adding documents to rebuilt vector store", total=len(chunks)):
             self.logger.debug(f"Adding document with ID {id} to vector store.")
             vstore.add_documents([chunk], ids=[id])
 
@@ -136,7 +136,7 @@ class Indexer:
         
         if new:
             self.logger.info(f"Adding {len(new)} new documents to vector store.")
-            for id, chunk in tqdm(zip(id_list, chunks), desc="Adding updated documents to vector store"):
+            for id, chunk in tqdm(zip(id_list, chunks), desc="Adding updated documents to vector store", total=len(chunks)):
                 if id in new:
                     self.logger.debug(f"Adding updated document with ID {id} to vector store.")
                     vstore.add_documents([chunk], ids=[id])
