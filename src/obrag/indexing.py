@@ -4,6 +4,7 @@ Building and maintaing the vector store for your local OBRAG instance.
 import logging
 
 from typing import Optional
+from pathlib import Path
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import ObsidianLoader
@@ -26,6 +27,11 @@ class Indexer:
     def _setup(self) -> None:
         self.logger.info("Beginning Indexer setup...")
         self.embed_fn = HuggingFaceEmbeddings(model_name=self.cfg.embedding_model)
+
+        # make sure the data directory exists
+        if not Path("./data").exists():
+            Path("./data").mkdir(parents=True, exist_ok=True)
+
         self.record_manager = SQLRecordManager(
             namespace=f"OBRAG/{COLLECTION_NAME}",
             db_url=DATABASE_URL
