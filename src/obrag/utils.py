@@ -48,7 +48,7 @@ ASCII_BANNER = """
      \\/__/         \\/__/         \\/__/         \\/__/         \\/__/    
 """
 
-VERSION_NUMBER = "0.1.0"
+VERSION_NUMBER = "0.1.2"
 
 
 def print_banner() -> None:
