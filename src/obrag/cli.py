@@ -4,7 +4,6 @@ from .utils import *
 from .indexing import Indexer
 from .rag import RAGPipeline
 
-from langchain_chroma import Chroma
 from logging import Logger
 
 def interaction_loop(pipeline: RAGPipeline, logger: Logger) -> None:
@@ -62,9 +61,11 @@ def main():
     os.environ["OPENAI_API_KEY"] = cfg.openai_api_key
 
     # move on to loading vstore, building if necessary
+    print(f"\nUpdating and loading vector store from [{cfg.persist_dir}]...")
     indexer = Indexer(cfg, logger)
-    vstore : Chroma = indexer.get_vstore(force_refresh=args.rebuild) # Load or build the vector store
+    result, vstore = indexer.get_vstore(force_refresh=args.rebuild) # Load or build the vector store
     print("Vector store loaded successfully.")
+    print(f"Indexing Results: {result}")
 
     # compile the RAG pipeline and start the CLI
     rag = RAGPipeline(vstore, cfg, logger)
