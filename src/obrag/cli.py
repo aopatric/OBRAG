@@ -2,12 +2,14 @@ from .config import get_config, startup_wizard
 from .logging import start_logger
 from .utils import *
 from .indexing import Indexer
-from .rag import RAGPipeline
+from .rag import OBRAG
 
+from typing import List, Any
 from logging import Logger
 
-def interaction_loop(pipeline: RAGPipeline, logger: Logger) -> None:
+def interaction_loop(pipeline: OBRAG, logger: Logger) -> None:
     """Main interaction loop for the OBRAG CLI."""
+    message_history : List[Any] = [SYSTEM_MESSAGE]
     while True:
         try:
             question = input("\nyou (type 'exit' to quit): ").strip()
@@ -17,19 +19,14 @@ def interaction_loop(pipeline: RAGPipeline, logger: Logger) -> None:
                 break
             
             logger.info(f"Received question: {question}")
-            response = pipeline.generate(question)
-            context = response["context"]
-            answer = response["answer"]
+            response, message_history, tools_called = pipeline.generate(question, message_history)
+            
             
             print("\nOBRAG:")
-            print(answer)
-            logger.info(f"Answer generated: {answer}")
+            print(response)
 
-            print("\nContext:")
-            for doc in context:
-                print(f"- {doc.metadata.get('path', 'Unknown source')}")
-
-        
+            print("\nTools called:")
+            print(", ".join(tools_called))
         except Exception as e:
             logger.error(f"Error during interaction: {e}")
             print(f"An error occurred: {e}. Please try again.")
@@ -68,8 +65,7 @@ def main():
     print(f"Indexing Results: {result}")
 
     # compile the RAG pipeline and start the CLI
-    rag = RAGPipeline(vstore, cfg, logger)
-    rag.compile()
+    rag = OBRAG(vstore, cfg, logger)
     print("RAG pipeline compiled successfully.")
     logger.info("OBRAG CLI is ready to answer questions.")
 
@@ -82,17 +78,14 @@ def main():
     else:
         question = args.ask.strip()
         logger.info(f"Direct question asked: {question}")
-        response = rag.generate(question)
-        context = response["context"]
-        answer = response["answer"]
-        
+        answer, _, tools_called = rag.generate(question, [SYSTEM_MESSAGE])
+
         print("\nOBRAG:")
         print(answer)
         logger.info(f"Answer generated: {answer}")
 
-        print("\nContext:")
-        for doc in context:
-            print(f"- {doc.metadata.get('path', 'Unknown source')}")
+        print("\nTools Called:")
+        print(", ".join(tools_called))
         
         logger.info("exiting after direct question response.")
 

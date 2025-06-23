@@ -6,3 +6,4 @@ langchain-huggingface
 langchain-community
 langgraph
 sentence-transformers
+duckduckgo-search
