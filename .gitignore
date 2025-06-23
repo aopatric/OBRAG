@@ -199,5 +199,5 @@ logs/
 config.json
 deprecated/
 tests/
-dev/
+src/dev/
 .venv/
